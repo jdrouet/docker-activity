@@ -9,7 +9,8 @@ WORKDIR /code
 RUN cargo init
 COPY Cargo.toml Cargo.lock /code/
 RUN cargo fetch
-COPY src/main.rs /code/src/main.rs
+COPY src/*.rs /code/src/
+COPY src/exporter /code/src/exporter
 RUN cargo build --release --offline
 
 FROM alpine
