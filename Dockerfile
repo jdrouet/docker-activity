@@ -1,4 +1,5 @@
-FROM rust:alpine AS builder
+# to be able to use `File::with_options` we need to use nightly build
+FROM ghcr.io/rust-lang/rust:nightly-alpine AS builder
 
 RUN apk add --no-cache musl-dev
 

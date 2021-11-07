@@ -1,3 +1,5 @@
+#![feature(with_options)]
+
 use bollard::container::{Stats, StatsOptions};
 use bollard::models::SystemEventsResponse;
 use bollard::system::EventsOptions;
@@ -77,7 +79,11 @@ impl ContainerWatcher {
         name: String,
         path: PathBuf,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let file = File::create(&path)?;
+        let file = File::with_options()
+            .write(true)
+            .append(true)
+            .create(true)
+            .open(&path)?;
         let mut watcher = ContainerWatcher {
             docker,
             powercap,
@@ -85,6 +91,14 @@ impl ContainerWatcher {
             file,
         };
         watcher.run(register).await
+    }
+
+    fn write_header(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        writeln!(
+            self.file,
+            "ts,pid_count,pid_limit,memory_usage,memory_limit,cpu_percent,cpu_count,cpu_energy",
+        )?;
+        Ok(())
     }
 
     async fn run(
@@ -99,6 +113,7 @@ impl ContainerWatcher {
                 one_shot: false,
             }),
         );
+        self.write_header()?;
         let mut last_energy: Option<u64> = None;
         while let Some(Ok(stat)) = stream.next().await {
             let energy = self
@@ -255,66 +270,6 @@ struct Params {
     #[clap(about = "Path to write the file")]
     output: PathBuf,
 }
-
-/*
-impl Params {
-fn write_header(&self, file: &mut File) -> Result<(), Box<dyn std::error::Error>> {
-writeln!(
-file,
-"ts,pid_count,pid_limit,memory_usage,memory_limit,cpu_percent,cpu_count,cpu_energy",
-)?;
-Ok(())
-}
-
-async fn process_stream(
-&self,
-file: &mut File,
-docker: &Docker,
-powercap: Option<&PowerCap>,
-) -> Result<(), Box<dyn std::error::Error>> {
-let stream = &mut docker.stats(
-&self.container,
-Some(StatsOptions {
-stream: true,
-one_shot: false,
-}),
-);
-let mut last_energy: Option<u64> = None;
-while let Some(Ok(stat)) = stream.next().await {
-let energy = powercap.and_then(|pcap| pcap.intel_rapl.total_energy().ok());
-let delta = both(last_energy, energy).map(|(prev, next)| next - prev);
-last_energy = energy;
-let snap = Snapshot::build(stat, delta);
-writeln!(
-file,
-"{},{},{},{},{},{},{},{}",
-snap.ts,
-snap.pid_count.unwrap_or_default(),
-snap.pid_limit.unwrap_or_default(),
-snap.memory_usage.unwrap_or_default(),
-snap.memory_limit.unwrap_or_default(),
-snap.cpu_percent,
-snap.cpu_count,
-snap.cpu_energy.unwrap_or_default(),
-)?;
-}
-Ok(())
-}
-
-pub async fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
-let mut file = File::create(&self.output).expect("Couldn't create file");
-let docker =
-Docker::connect_with_local_defaults().expect("Couldn't connect to docker engine");
-let powercap = PowerCap::try_default().ok();
-self.write_header(&mut file)?;
-loop {
-self.process_stream(&mut file, &docker, powercap.as_ref())
-.await?;
-tokio::time::sleep(Duration::new(1, 0)).await;
-}
-}
-}
-*/
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
