@@ -2,7 +2,7 @@ use bollard::container::Stats;
 
 #[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Snapshot {
+pub struct Record {
     pub container_id: String,
     pub container_name: String,
     pub ts: i64,
@@ -15,7 +15,7 @@ pub struct Snapshot {
     pub cpu_energy: Option<f64>,
 }
 
-impl From<Stats> for Snapshot {
+impl From<Stats> for Record {
     fn from(item: Stats) -> Self {
         let cpu_delta =
             item.cpu_stats.cpu_usage.total_usage - item.precpu_stats.cpu_usage.total_usage;
@@ -39,7 +39,7 @@ impl From<Stats> for Snapshot {
     }
 }
 
-impl Snapshot {
+impl Record {
     pub fn with_energy(mut self, total_cpu_energy: Option<u64>) -> Self {
         if let Some(total_cpu_energy) = total_cpu_energy {
             self.cpu_energy = Some(self.cpu_percent * total_cpu_energy as f64);

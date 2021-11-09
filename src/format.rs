@@ -1,4 +1,4 @@
-use crate::model::Snapshot;
+use crate::model::Record;
 use std::str::FromStr;
 
 #[derive(Debug, Clone)]
@@ -35,13 +35,13 @@ impl Format {
 }
 
 pub trait Formatter {
-    fn format(&self, event: Snapshot) -> Result<String, String>;
+    fn format(&self, event: Record) -> Result<String, String>;
 }
 
 pub struct CsvFormatter;
 
 impl Formatter for CsvFormatter {
-    fn format(&self, event: Snapshot) -> Result<String, String> {
+    fn format(&self, event: Record) -> Result<String, String> {
         Ok(format!(
             "{},{},{},{},{},{},{},{},{},{}",
             event.container_id,
@@ -61,7 +61,7 @@ impl Formatter for CsvFormatter {
 pub struct JsonFormatter;
 
 impl Formatter for JsonFormatter {
-    fn format(&self, event: Snapshot) -> Result<String, String> {
+    fn format(&self, event: Record) -> Result<String, String> {
         serde_json::to_string(&event).map_err(|err| err.to_string())
     }
 }

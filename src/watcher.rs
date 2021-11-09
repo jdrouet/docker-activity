@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::model::Snapshot;
+use crate::model::Record;
 use crate::Params;
 use bollard::container::StatsOptions;
 use bollard::models::SystemEventsResponse;
@@ -32,7 +32,7 @@ impl ContainerWatcher {
         powercap: Arc<Option<PowerCap>>,
         register: Arc<Mutex<HashSet<String>>>,
         name: String,
-        tx: mpsc::Sender<Snapshot>,
+        tx: mpsc::Sender<Record>,
     ) -> Result<(), Error> {
         let mut watcher = ContainerWatcher {
             docker,
@@ -45,7 +45,7 @@ impl ContainerWatcher {
     async fn run(
         &mut self,
         register: Arc<Mutex<HashSet<String>>>,
-        tx: mpsc::Sender<Snapshot>,
+        tx: mpsc::Sender<Record>,
     ) -> Result<(), Error> {
         println!("watching container={}", self.name);
         let stream = &mut self.docker.stats(
@@ -57,7 +57,7 @@ impl ContainerWatcher {
         );
         let mut last_energy: Option<u64> = None;
         while let Some(Ok(stat)) = stream.next().await {
-            let snap = Snapshot::from(stat);
+            let snap = Record::from(stat);
             let energy = self
                 .powercap
                 .as_ref()
@@ -116,7 +116,7 @@ impl TryFrom<Params> for Orchestrator {
 }
 
 impl Orchestrator {
-    fn is_running(&self, name: &String) -> bool {
+    fn is_running(&self, name: &str) -> bool {
         self.tasks
             .lock()
             .map(|lock| lock.contains(name))
@@ -133,7 +133,7 @@ impl Orchestrator {
     fn handle_start_event(
         &mut self,
         container_name: String,
-        tx: mpsc::Sender<Snapshot>,
+        tx: mpsc::Sender<Record>,
     ) -> Result<(), Error> {
         if self.is_running(&container_name) {
             return Ok(());
@@ -156,18 +156,18 @@ impl Orchestrator {
         &mut self,
         container_name: String,
         action: Option<String>,
-        tx: mpsc::Sender<Snapshot>,
+        tx: mpsc::Sender<Record>,
     ) -> Result<(), Error> {
         if !self.names.is_empty() && !self.names.contains(&container_name) {
             return Ok(());
         }
-        match action.as_ref().map(|action| action.as_str()) {
+        match action.as_deref() {
             Some("start") => self.handle_start_event(container_name, tx),
             _ => Ok(()),
         }
     }
 
-    pub async fn run(&mut self, tx: mpsc::Sender<Snapshot>) -> Result<(), Error> {
+    pub async fn run(&mut self, tx: mpsc::Sender<Record>) -> Result<(), Error> {
         let mut filters = HashMap::new();
         filters.insert("type", vec!["container"]);
         let stream = &mut self.docker.events(Some(EventsOptions {

@@ -1,10 +1,10 @@
 mod file;
 
-use crate::model::Snapshot;
+use crate::model::Record;
 use clap::Parser;
 
 pub trait Exporter {
-    fn handle(&mut self, record: Snapshot) -> Result<(), String>;
+    fn handle(&mut self, record: Record) -> Result<(), String>;
 }
 
 #[derive(Parser)]

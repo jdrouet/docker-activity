@@ -1,6 +1,6 @@
 use crate::exporter::Exporter;
 use crate::format::{Format, Formatter};
-use crate::model::Snapshot;
+use crate::model::Record;
 use clap::Parser;
 use std::fs::File;
 use std::io::Write;
@@ -33,11 +33,8 @@ pub struct FileExporter {
 }
 
 impl Exporter for FileExporter {
-    fn handle(&mut self, record: Snapshot) -> Result<(), String> {
-        let line = self
-            .formatter
-            .format(record)
-            .map_err(|err| err.to_string())?;
+    fn handle(&mut self, record: Record) -> Result<(), String> {
+        let line = self.formatter.format(record)?;
         writeln!(self.file, "{}", line).map_err(|err| err.to_string())?;
         Ok(())
     }
