@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+  activity:
+    image: jdrouet/docker-activity:canary
+    build: .
+    command: file --format json /data/output.jsonp
+    volumes:
+      - /sys/class/powercap:/sys/class/powercap:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - storage:/data
+
+  vector:
+    image: timberio/vector:latest-alpine
+    networks:
+      - backend
+    ports:
+      - 9091:9090
+    volumes:
+      - ./vector.toml:/etc/vector/vector.toml:ro
+      - storage:/data:ro
+
+  prometheus:
+    image: bitnami/prometheus:latest
+    networks:
+      - backend
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus.yml:/opt/bitnami/prometheus/conf/prometheus.yml:ro
+      - /etc/timezone:/etc/timezone:ro
+
+networks:
+  backend: {}
+
+volumes:
+  storage: {}
+

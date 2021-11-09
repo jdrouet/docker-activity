@@ -216,6 +216,8 @@ dependencies = [
  "futures",
  "futures-util",
  "powercap",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 
