@@ -3,7 +3,7 @@ version: '3'
 services:
   activity:
     image: jdrouet/docker-activity:canary
-    build: .
+    build: ..
     command: file --format json /data/output.jsonp
     volumes:
       - /sys/class/powercap:/sys/class/powercap:ro

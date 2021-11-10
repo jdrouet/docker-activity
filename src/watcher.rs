@@ -1,7 +1,7 @@
 use crate::error::Error;
 use crate::model::Record;
 use crate::Params;
-use bollard::container::StatsOptions;
+use bollard::container::{ListContainersOptions, StatsOptions};
 use bollard::models::SystemEventsResponse;
 use bollard::system::EventsOptions;
 use bollard::Docker;
@@ -11,6 +11,7 @@ use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
+use tracing::{debug, info, trace, warn};
 
 fn both<A, B>(a: Option<A>, b: Option<B>) -> Option<(A, B)> {
     if let (Some(a), Some(b)) = (a, b) {
@@ -42,40 +43,61 @@ impl ContainerWatcher {
         watcher.run(register, tx).await
     }
 
+    async fn is_alive(&mut self) -> Result<bool, Error> {
+        trace!("checking if container {:?} is still running", self.name);
+        let mut filters: HashMap<&str, Vec<&str>> = HashMap::new();
+        filters.insert("name", vec![self.name.as_str()]);
+        filters.insert("status", vec!["running"]);
+        self.docker
+            .list_containers(Some(ListContainersOptions {
+                all: true,
+                limit: None,
+                size: false,
+                filters,
+            }))
+            .await
+            .map(|list| !list.is_empty())
+            .map_err(|err| Error::Custom(format!("couldn't list containers: {:?}", err)))
+    }
+
     async fn run(
         &mut self,
         register: Arc<Mutex<HashSet<String>>>,
         tx: mpsc::Sender<Record>,
     ) -> Result<(), Error> {
-        println!("watching container={}", self.name);
-        let stream = &mut self.docker.stats(
-            &self.name,
-            Some(StatsOptions {
-                stream: true,
-                one_shot: false,
-            }),
-        );
+        info!("watching container {:?}", self.name);
         let mut last_energy: Option<u64> = None;
-        while let Some(Ok(stat)) = stream.next().await {
-            let snap = Record::from(stat);
-            let energy = self
-                .powercap
-                .as_ref()
-                .as_ref()
-                .and_then(|pcap| pcap.intel_rapl.total_energy().ok());
-            let delta = both(last_energy, energy).map(|(prev, next)| next - prev);
-            last_energy = energy;
-            if let Err(err) = tx.send(snap.with_energy(delta)).await {
-                eprintln!("unable to forward snapshot: {:?}", err);
+        while self.is_alive().await? {
+            let stream = &mut self.docker.stats(
+                &self.name,
+                Some(StatsOptions {
+                    stream: true,
+                    one_shot: false,
+                }),
+            );
+            debug!("starting the watch of {:?}", self.name);
+            while let Some(Ok(stat)) = stream.next().await {
+                let snap = Record::from(stat);
+                let energy = self
+                    .powercap
+                    .as_ref()
+                    .as_ref()
+                    .and_then(|pcap| pcap.intel_rapl.total_energy().ok());
+                let delta = both(last_energy, energy).map(|(prev, next)| next - prev);
+                last_energy = energy;
+                if let Err(err) = tx.send(snap.with_energy(delta)).await {
+                    warn!("unable to forward snapshot: {:?}", err);
+                }
             }
+            debug!("lost connection with stats for container {:?}", self.name);
         }
 
         let mut lock = register.try_lock();
         if let Ok(ref mut mutex) = lock {
             mutex.remove(&self.name);
-            println!("done watching container={}", self.name);
+            info!("done watching container {:?}", self.name);
         } else {
-            eprintln!("couldn't unregister container={}", self.name);
+            warn!("couldn't unregister container {:?}", self.name);
         }
         Ok(())
     }
@@ -136,6 +158,7 @@ impl Orchestrator {
         tx: mpsc::Sender<Record>,
     ) -> Result<(), Error> {
         if self.is_running(&container_name) {
+            debug!("container {:?} already runnin", container_name);
             return Ok(());
         }
         self.register_task(container_name.clone());
@@ -146,7 +169,7 @@ impl Orchestrator {
             if let Err(err) =
                 ContainerWatcher::execute(docker, powercap, tasks, container_name, tx).await
             {
-                eprintln!("container watcher errored: {:?}", err);
+                warn!("container watcher errored: {:?}", err);
             }
         });
         Ok(())
@@ -167,7 +190,29 @@ impl Orchestrator {
         }
     }
 
+    async fn list_running(&mut self) -> Result<Vec<String>, Error> {
+        let mut filters: HashMap<&str, Vec<&str>> = HashMap::new();
+        filters.insert("status", vec!["running"]);
+        self.docker
+            .list_containers(Some(ListContainersOptions {
+                all: true,
+                limit: None,
+                size: false,
+                filters,
+            }))
+            .await
+            .map(|list| {
+                list.into_iter()
+                    .filter_map(|item| item.names.and_then(|names| names.first().cloned()))
+                    .collect()
+            })
+            .map_err(|err| Error::Custom(format!("couldn't list running containers: {:?}", err)))
+    }
+
     pub async fn run(&mut self, tx: mpsc::Sender<Record>) -> Result<(), Error> {
+        for name in self.list_running().await? {
+            self.handle_start_event(name, tx.clone())?;
+        }
         let mut filters = HashMap::new();
         filters.insert("type", vec!["container"]);
         let stream = &mut self.docker.events(Some(EventsOptions {
@@ -177,12 +222,12 @@ impl Orchestrator {
         }));
         while let Some(Ok(event)) = stream.next().await {
             if let Some(container_name) = get_container_name(&event) {
-                println!(
-                    "received action {:?} for container {}",
+                debug!(
+                    "received action {:?} for container {:?}",
                     event.action, container_name
                 );
                 if let Err(err) = self.handle_event(container_name, event.action, tx.clone()) {
-                    eprintln!("couldn't handle event: {:?}", err);
+                    warn!("couldn't handle event: {:?}", err);
                 }
             }
         }

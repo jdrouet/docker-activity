@@ -15,6 +15,8 @@ use tokio::sync::mpsc;
 struct Params {
     #[clap(long, about = "Size of the buffer.", default_value = "32")]
     pub buffer_size: usize,
+    #[clap(long, about = "Level of logging.", default_value = "info")]
+    pub log_level: tracing::Level,
     #[clap(
         long,
         about = "Name or ID of the container to monitor, separated by comma."
@@ -27,6 +29,11 @@ struct Params {
 #[tokio::main]
 async fn main() {
     let params = Params::parse();
+
+    tracing_subscriber::fmt()
+        .with_max_level(params.log_level)
+        .init();
+
     let (tx, mut rx) = mpsc::channel(params.buffer_size);
     let mut exporter = params.output.exporter();
     tokio::spawn(async move {
