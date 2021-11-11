@@ -40,3 +40,5 @@ docker run \
 In [the example](./example/docker-compose.yml), you can see how to interface `docker-activity` with [Vector](https://vector.dev)
 in order to export that data to [Prometheus](https://prometheus.io) or any other tool.
 
+![Example in prometheus](./example/prometheus-screenshot.png)
+
