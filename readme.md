@@ -32,3 +32,11 @@ docker run \
 	-v ./output:/output \
 	jdrouet/docker-activity /output
 ```
+
+## Interfacing with Prometheus
+
+`docker-activity` doesn't have any complex output system. You should rely on other tools to export the data somewhere.
+
+In [the example](./example/docker-compose.yml), you can see how to interface `docker-activity` with [Vector](https://vector.dev)
+in order to export that data to [Prometheus](https://prometheus.io) or any other tool.
+
