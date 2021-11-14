@@ -1,6 +1,7 @@
 use bollard::container::Stats;
 
 #[derive(Debug, serde::Serialize)]
+#[cfg_attr(test, derive(Clone))]
 #[serde(rename_all = "camelCase")]
 pub struct Record {
     pub container_id: String,
@@ -45,5 +46,23 @@ impl Record {
             self.cpu_energy = Some(self.cpu_percent * total_cpu_energy as f64);
         }
         self
+    }
+}
+
+#[cfg(test)]
+impl Record {
+    pub fn random() -> Self {
+        Self {
+            container_id: "hello".into(),
+            container_name: "world".into(),
+            ts: 1234,
+            pid_count: Some(12),
+            pid_limit: Some(20),
+            memory_usage: Some(14),
+            memory_limit: None,
+            cpu_count: 2,
+            cpu_energy: Some(0.23),
+            cpu_percent: 0.89,
+        }
     }
 }
