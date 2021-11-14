@@ -1,13 +1,18 @@
 [api]
 enabled = true
 
-[sources.docker-activity]
+[sources.docker-activity-file]
 type = "file"
 include = ["/data/output.jsonp"]
 
+[sources.docker-activity-tcp]
+type = "socket"
+address = "0.0.0.0:9000"
+mode = "tcp"
+
 [transforms.parse-json]
 type = "remap"
-inputs = ["docker-activity"]
+inputs = ["docker-activity-tcp"]
 source = ". = parse_json!(.message)"
 
 [transforms.into-metrics]
