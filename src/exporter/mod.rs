@@ -4,6 +4,8 @@ mod socket;
 use crate::model::Record;
 use clap::Parser;
 
+const LINE_ENDING: &str = "\n";
+
 pub trait Exporter {
     fn handle(&mut self, record: Record) -> Result<(), String>;
 }

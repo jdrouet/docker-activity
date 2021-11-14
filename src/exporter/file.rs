@@ -34,8 +34,31 @@ pub struct FileExporter {
 
 impl Exporter for FileExporter {
     fn handle(&mut self, record: Record) -> Result<(), String> {
-        let line = self.formatter.format(record)?;
-        writeln!(self.file, "{}", line).map_err(|err| err.to_string())?;
+        let mut line = self.formatter.format(record)?;
+        line.push_str(super::LINE_ENDING);
+        self.file
+            .write_all(line.as_bytes())
+            .map_err(|err| err.to_string())?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FileExporter;
+    use crate::exporter::Exporter;
+    use crate::model::Record;
+    use std::fs::File;
+
+    #[tokio::test]
+    async fn unix_socket_should_receive() {
+        let tmp = std::env::temp_dir().join("output.jsonp");
+        let file = File::create(&tmp).unwrap();
+        let formatter = Box::new(crate::format::JsonFormatter);
+        let source = Record::random();
+        let mut exporter = FileExporter { file, formatter };
+        exporter.handle(source.clone()).unwrap();
+        let data = std::fs::read_to_string(tmp).unwrap();
+        assert_eq!(serde_json::to_string(&source).unwrap(), data.trim());
     }
 }
