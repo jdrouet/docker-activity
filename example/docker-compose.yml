@@ -4,7 +4,10 @@ services:
   activity:
     image: jdrouet/docker-activity:canary
     build: ..
-    command: file --format json /data/output.jsonp
+    # command: file --format json /data/output.jsonp
+    command: tcp-socket --format json vector:9000
+    networks:
+      - backend
     volumes:
       - /sys/class/powercap:/sys/class/powercap:ro
       - /var/run/docker.sock:/var/run/docker.sock

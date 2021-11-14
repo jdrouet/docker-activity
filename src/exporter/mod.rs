@@ -1,4 +1,5 @@
 mod file;
+mod socket;
 
 use crate::model::Record;
 use clap::Parser;
@@ -10,12 +11,18 @@ pub trait Exporter {
 #[derive(Parser)]
 pub enum Output {
     File(file::FileOutput),
+    #[cfg(not(windows))]
+    UnixSocket(socket::UnixSocketOutput),
+    TcpSocket(socket::TcpSocketOutput),
 }
 
 impl Output {
     pub fn exporter(&self) -> Box<dyn Exporter> {
         match self {
             Self::File(file) => file.exporter(),
+            #[cfg(not(windows))]
+            Self::UnixSocket(socket) => socket.exporter(),
+            Self::TcpSocket(socket) => socket.exporter(),
         }
     }
 }
