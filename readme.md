@@ -15,7 +15,7 @@ consumption information, you need to have access to `/sys/class/powercap`.
 # Build the project in release mode
 cargo build --release
 # Start as root
-sudo ./target/release/docker-activity ./output-folder
+sudo ./target/release/docker-activity tcp-socket 1.2.3.4:56
 # Get some help
 ./target/release/docker-activity --help
 ```
@@ -30,7 +30,7 @@ docker run \
 	-v /sys/class/powercap:/sys/class/powercap:ro \
 	-v /var/run/docker.sock:/var/run/docker.sock \
 	-v ./output:/output \
-	jdrouet/docker-activity /output
+	jdrouet/docker-activity tcp-socket 1.2.3.4:56
 ```
 
 ## Interfacing with Prometheus
