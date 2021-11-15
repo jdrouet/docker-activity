@@ -12,7 +12,7 @@ use std::path::PathBuf;
 pub struct UnixSocketOutput {
     #[clap(short, long, about = "Format of the output records")]
     format: Option<Format>,
-    #[clap(about = "Path to write the file")]
+    #[clap(about = "Path to the unix socket")]
     output: PathBuf,
 }
 
