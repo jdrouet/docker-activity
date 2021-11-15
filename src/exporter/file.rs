@@ -43,7 +43,7 @@ impl Exporter for FileExporter {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "formatter-json"))]
 mod tests {
     use super::FileExporter;
     use crate::exporter::Exporter;
@@ -54,7 +54,7 @@ mod tests {
     async fn unix_socket_should_receive() {
         let tmp = std::env::temp_dir().join("output.jsonp");
         let file = File::create(&tmp).unwrap();
-        let formatter = Box::new(crate::format::JsonFormatter);
+        let formatter = Box::new(crate::format::json::JsonFormatter);
         let source = Record::random();
         let mut exporter = FileExporter { file, formatter };
         exporter.handle(source.clone()).unwrap();

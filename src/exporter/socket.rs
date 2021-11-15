@@ -57,7 +57,7 @@ impl Exporter for SocketExporter {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "formatter-json"))]
 mod tests {
     use super::SocketExporter;
     use crate::exporter::Exporter;
@@ -78,7 +78,7 @@ mod tests {
         });
         let mut exporter = SocketExporter {
             stream: Box::new(ts),
-            formatter: Box::new(crate::format::JsonFormatter),
+            formatter: Box::new(crate::format::json::JsonFormatter),
         };
         exporter.handle(Record::random()).unwrap();
         handler.await.unwrap();
