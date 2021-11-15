@@ -1,8 +1,12 @@
 use bollard::container::Stats;
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug)]
 #[cfg_attr(test, derive(Clone))]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(
+    feature = "formatter-json",
+    derive(serde::Serialize),
+    serde(rename_all = "camelCase")
+)]
 pub struct Record {
     pub container_id: String,
     pub container_name: String,
