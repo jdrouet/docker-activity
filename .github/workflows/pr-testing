@@ -1,0 +1,24 @@
+name: Testing the library without write access
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+            toolchain: nightly
+            components: clippy
+            override: true
+      - name: check with clippy
+        run: cargo clippy --all-features
+      - name: execute lib tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+
