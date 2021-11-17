@@ -1,6 +1,9 @@
-name: Testing the library
+name: Testing the library with write access
 
-on: [push]
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   test:
