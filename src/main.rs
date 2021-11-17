@@ -1,5 +1,3 @@
-#![feature(with_options)]
-
 mod error;
 mod exporter;
 mod format;

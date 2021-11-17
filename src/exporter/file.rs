@@ -16,7 +16,7 @@ pub struct FileOutput {
 
 impl FileOutput {
     pub fn exporter(&self) -> Box<dyn Exporter> {
-        let file = File::with_options()
+        let file = File::options()
             .create(true)
             .write(true)
             .append(true)
