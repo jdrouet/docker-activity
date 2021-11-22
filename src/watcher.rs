@@ -6,6 +6,7 @@ use bollard::models::SystemEventsResponse;
 use bollard::system::EventsOptions;
 use bollard::Docker;
 use futures_util::stream::StreamExt;
+#[cfg(feature = "enrichment-powercap")]
 use powercap::PowerCap;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
@@ -13,6 +14,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tracing::{debug, info, trace, warn};
 
+#[cfg(feature = "enrichment-powercap")]
 fn both<A, B>(a: Option<A>, b: Option<B>) -> Option<(A, B)> {
     if let (Some(a), Some(b)) = (a, b) {
         Some((a, b))
@@ -23,10 +25,14 @@ fn both<A, B>(a: Option<A>, b: Option<B>) -> Option<(A, B)> {
 
 struct ContainerWatcher {
     docker: Arc<Docker>,
+    #[cfg(feature = "enrichment-powercap")]
     powercap: Arc<Option<PowerCap>>,
     name: String,
+    #[cfg(feature = "enrichment-powercap")]
+    last_energy: Option<u64>,
 }
 
+#[cfg(feature = "enrichment-powercap")]
 impl ContainerWatcher {
     async fn execute(
         docker: Arc<Docker>,
@@ -39,10 +45,47 @@ impl ContainerWatcher {
             docker,
             powercap,
             name,
+            last_energy: None,
         };
         watcher.run(register, tx).await
     }
 
+    fn enrichment(&mut self, record: Record) -> Record {
+        let energy = self
+            .powercap
+            .as_ref()
+            .as_ref()
+            .and_then(|pcap| pcap.intel_rapl.total_energy().ok());
+        let delta = both(self.last_energy, energy).map(|(prev, next)| next - prev);
+        self.last_energy = energy;
+        record.with_energy(delta)
+    }
+
+    fn reset(&mut self) {
+        self.last_energy = None;
+    }
+}
+
+#[cfg(not(feature = "enrichment-powercap"))]
+impl ContainerWatcher {
+    async fn execute(
+        docker: Arc<Docker>,
+        register: Arc<Mutex<HashSet<String>>>,
+        name: String,
+        tx: mpsc::Sender<Record>,
+    ) -> Result<(), Error> {
+        let mut watcher = ContainerWatcher { docker, name };
+        watcher.run(register, tx).await
+    }
+
+    fn enrichment(&mut self, record: Record) -> Record {
+        record
+    }
+
+    fn reset(&mut self) {}
+}
+
+impl ContainerWatcher {
     async fn is_alive(&mut self) -> Result<bool, Error> {
         trace!("checking if container {:?} is still running", self.name);
         let mut filters: HashMap<&str, Vec<&str>> = HashMap::new();
@@ -66,7 +109,7 @@ impl ContainerWatcher {
         tx: mpsc::Sender<Record>,
     ) -> Result<(), Error> {
         info!("watching container {:?}", self.name);
-        let mut last_energy: Option<u64> = None;
+        self.reset();
         while self.is_alive().await? {
             let stream = &mut self.docker.stats(
                 &self.name,
@@ -78,14 +121,8 @@ impl ContainerWatcher {
             debug!("starting the watch of {:?}", self.name);
             while let Some(Ok(stat)) = stream.next().await {
                 let snap = Record::from(stat);
-                let energy = self
-                    .powercap
-                    .as_ref()
-                    .as_ref()
-                    .and_then(|pcap| pcap.intel_rapl.total_energy().ok());
-                let delta = both(last_energy, energy).map(|(prev, next)| next - prev);
-                last_energy = energy;
-                if let Err(err) = tx.send(snap.with_energy(delta)).await {
+                let snap = self.enrichment(snap);
+                if let Err(err) = tx.send(snap).await {
                     warn!("unable to forward snapshot: {:?}", err);
                 }
             }
@@ -114,11 +151,13 @@ fn get_container_name(event: &SystemEventsResponse) -> Option<String> {
 
 pub struct Orchestrator {
     docker: Arc<Docker>,
+    #[cfg(feature = "enrichment-powercap")]
     powercap: Arc<Option<PowerCap>>,
     names: HashSet<String>,
     tasks: Arc<Mutex<HashSet<String>>>,
 }
 
+#[cfg(feature = "enrichment-powercap")]
 impl TryFrom<Params> for Orchestrator {
     type Error = Box<dyn std::error::Error>;
 
@@ -132,6 +171,23 @@ impl TryFrom<Params> for Orchestrator {
         Ok(Self {
             docker,
             powercap,
+            names: value
+                .containers
+                .map(|value| value.split(',').map(String::from).collect())
+                .unwrap_or_default(),
+            tasks: Arc::new(Mutex::new(HashSet::new())),
+        })
+    }
+}
+
+#[cfg(not(feature = "enrichment-powercap"))]
+impl TryFrom<Params> for Orchestrator {
+    type Error = Box<dyn std::error::Error>;
+
+    fn try_from(value: Params) -> Result<Self, Self::Error> {
+        let docker = Arc::new(Docker::connect_with_local_defaults()?);
+        Ok(Self {
+            docker,
             names: value
                 .containers
                 .map(|value| value.split(',').map(String::from).collect())
@@ -167,11 +223,19 @@ impl Orchestrator {
         }
         self.register_task(container_name.clone());
         let docker = self.docker.clone();
+        #[cfg(feature = "enrichment-powercap")]
         let powercap = self.powercap.clone();
         let tasks = self.tasks.clone();
         tokio::spawn(async {
-            if let Err(err) =
-                ContainerWatcher::execute(docker, powercap, tasks, container_name, tx).await
+            if let Err(err) = ContainerWatcher::execute(
+                docker,
+                #[cfg(feature = "enrichment-powercap")]
+                powercap,
+                tasks,
+                container_name,
+                tx,
+            )
+            .await
             {
                 warn!("container watcher errored: {:?}", err);
             }
