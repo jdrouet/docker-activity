@@ -124,7 +124,11 @@ impl TryFrom<Params> for Orchestrator {
 
     fn try_from(value: Params) -> Result<Self, Self::Error> {
         let docker = Arc::new(Docker::connect_with_local_defaults()?);
-        let powercap = Arc::new(PowerCap::try_default().ok());
+        let powercap = if value.disable_powercap {
+            Arc::new(None)
+        } else {
+            Arc::new(PowerCap::try_default().ok())
+        };
         Ok(Self {
             docker,
             powercap,

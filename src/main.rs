@@ -13,6 +13,8 @@ use tokio::sync::mpsc;
 struct Params {
     #[clap(long, about = "Size of the buffer.", default_value = "32")]
     pub buffer_size: usize,
+    #[clap(long, about = "Disable powercap enrichment.", default_value = "false")]
+    pub disable_powercap: bool,
     #[clap(long, about = "Level of logging.", default_value = "info")]
     pub log_level: tracing::Level,
     #[clap(
