@@ -1,5 +1,6 @@
 mod file;
 mod socket;
+mod stdout;
 
 use crate::model::Record;
 use clap::Parser;
@@ -19,6 +20,8 @@ pub enum Output {
     UnixSocket(socket::UnixSocketOutput),
     #[clap(about = "Write the data to a tcp socket")]
     TcpSocket(socket::TcpSocketOutput),
+    #[clap(about = "Write to standard output")]
+    Stdout(stdout::StdOutOutput),
 }
 
 impl Output {
@@ -28,6 +31,7 @@ impl Output {
             #[cfg(not(windows))]
             Self::UnixSocket(socket) => socket.exporter(),
             Self::TcpSocket(socket) => socket.exporter(),
+            Self::Stdout(socket) => socket.exporter(),
         }
     }
 }
