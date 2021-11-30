@@ -115,6 +115,26 @@ fn get_container_name(event: &SystemEventsResponse) -> Option<String> {
         .cloned()
 }
 
+impl Params {
+    pub fn create_docker(&self) -> Result<Docker, Box<dyn std::error::Error>> {
+        Ok(Docker::connect_with_local_defaults()?)
+    }
+
+    pub fn create_powercap(&self) -> Option<PowerCap> {
+        if self.disable_powercap {
+            None
+        } else {
+            match PowerCap::try_default() {
+                Ok(value) => Some(value),
+                Err(error) => {
+                    warn!("unable to create powercap reader: {:?}", error);
+                    None
+                }
+            }
+        }
+    }
+}
+
 pub struct Orchestrator {
     docker: Arc<Docker>,
     powercap: Arc<Option<PowerCap>>,
@@ -126,8 +146,8 @@ impl TryFrom<Params> for Orchestrator {
     type Error = Box<dyn std::error::Error>;
 
     fn try_from(value: Params) -> Result<Self, Self::Error> {
-        let docker = Arc::new(Docker::connect_with_local_defaults()?);
-        let powercap = Arc::new(PowerCap::try_default().ok());
+        let docker = Arc::new(value.create_docker()?);
+        let powercap = Arc::new(value.create_powercap());
         Ok(Self {
             docker,
             powercap,
@@ -161,7 +181,7 @@ impl Orchestrator {
         tx: mpsc::Sender<Record>,
     ) -> Result<(), Error> {
         if self.is_running(&container_name) {
-            debug!("container {:?} already runnin", container_name);
+            debug!("container {:?} already running", container_name);
             return Ok(());
         }
         self.register_task(container_name.clone());

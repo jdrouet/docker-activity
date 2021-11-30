@@ -20,6 +20,8 @@ struct Params {
         about = "Name or ID of the container to monitor, separated by comma."
     )]
     pub containers: Option<String>,
+    #[clap(long, about = "Disable monitoring power consumption.")]
+    pub disable_powercap: bool,
     #[clap(subcommand)]
     pub output: exporter::Output,
 }
