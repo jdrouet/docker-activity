@@ -46,7 +46,10 @@ impl ContainerWatcher {
     async fn is_alive(&mut self) -> Result<bool, Error> {
         trace!("checking if container {:?} is still running", self.name);
         let mut filters: HashMap<&str, Vec<&str>> = HashMap::new();
-        filters.insert("name", vec![self.name.as_str()]);
+        filters.insert(
+            "name",
+            vec![self.name.as_str(), self.name.trim_start_matches('/')],
+        );
         filters.insert("status", vec!["running"]);
         self.docker
             .list_containers(Some(ListContainersOptions {
@@ -69,7 +72,7 @@ impl ContainerWatcher {
         let mut last_energy: Option<u64> = None;
         while self.is_alive().await? {
             let stream = &mut self.docker.stats(
-                &self.name,
+                self.name.trim_start_matches('/'),
                 Some(StatsOptions {
                     stream: true,
                     one_shot: false,
