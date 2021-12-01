@@ -10,6 +10,7 @@ RUN cargo init
 COPY Cargo.toml Cargo.lock /code/
 RUN cargo fetch
 COPY src/*.rs /code/src/
+COPY src/enrichment /code/src/enrichment
 COPY src/exporter /code/src/exporter
 COPY src/format /code/src/format
 RUN cargo build --release --offline
