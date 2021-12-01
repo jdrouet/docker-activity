@@ -44,6 +44,7 @@ impl From<Stats> for Record {
     }
 }
 
+#[cfg(feature = "enrichment-powercap")]
 impl Record {
     pub fn with_energy(mut self, total_cpu_energy: Option<u64>) -> Self {
         if let Some(total_cpu_energy) = total_cpu_energy {
