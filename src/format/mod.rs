@@ -12,13 +12,17 @@ pub enum Format {
     Csv,
 }
 
+#[cfg(not(feature = "formatter-json"))]
 impl Default for Format {
     fn default() -> Self {
-        if cfg!(feature = "formatter-json") {
-            Self::Json
-        } else {
-            Self::Csv
-        }
+        Self::Csv
+    }
+}
+
+#[cfg(feature = "formatter-json")]
+impl Default for Format {
+    fn default() -> Self {
+        Self::Json
     }
 }
 
