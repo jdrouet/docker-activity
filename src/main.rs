@@ -1,3 +1,4 @@
+mod enrichment;
 mod error;
 mod exporter;
 mod format;
