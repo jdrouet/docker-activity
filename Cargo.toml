@@ -1,7 +1,15 @@
 [package]
 name = "docker-activity"
-version = "0.1.0"
+description = "Tool to monitor the statistics and the energy consumption of docker containers."
+repository = "https://github.com/jdrouet/docker-activity"
+keywords = ["docker", "powercap", "monitoring"]
+authors = ["Jeremie Drouet <jeremie.drouet@gmail.com>"]
+license = "AGPL-3.0-or-later"
+readme = "readme.md"
 edition = "2018"
+version = "0.1.0"
+
+exclude = ["example/"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
