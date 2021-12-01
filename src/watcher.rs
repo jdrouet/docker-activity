@@ -1,3 +1,4 @@
+use crate::enrichment::{Enricher, EnrichmentBuilder, EnrichmentStack};
 use crate::error::Error;
 use crate::model::Record;
 use crate::Params;
@@ -6,38 +7,29 @@ use bollard::models::SystemEventsResponse;
 use bollard::system::EventsOptions;
 use bollard::Docker;
 use futures_util::stream::StreamExt;
-use powercap::PowerCap;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tracing::{debug, info, trace, warn};
 
-fn both<A, B>(a: Option<A>, b: Option<B>) -> Option<(A, B)> {
-    if let (Some(a), Some(b)) = (a, b) {
-        Some((a, b))
-    } else {
-        None
-    }
-}
-
 struct ContainerWatcher {
     docker: Arc<Docker>,
-    powercap: Arc<Option<PowerCap>>,
+    enrichers: EnrichmentStack,
     name: String,
 }
 
 impl ContainerWatcher {
     async fn execute(
         docker: Arc<Docker>,
-        powercap: Arc<Option<PowerCap>>,
+        enrichers: EnrichmentStack,
         register: Arc<Mutex<HashSet<String>>>,
         name: String,
         tx: mpsc::Sender<Record>,
     ) -> Result<(), Error> {
         let mut watcher = ContainerWatcher {
             docker,
-            powercap,
+            enrichers,
             name,
         };
         watcher.run(register, tx).await
@@ -69,7 +61,6 @@ impl ContainerWatcher {
         tx: mpsc::Sender<Record>,
     ) -> Result<(), Error> {
         info!("watching container {:?}", self.name);
-        let mut last_energy: Option<u64> = None;
         while self.is_alive().await? {
             let stream = &mut self.docker.stats(
                 self.name.trim_start_matches('/'),
@@ -81,14 +72,8 @@ impl ContainerWatcher {
             debug!("starting the watch of {:?}", self.name);
             while let Some(Ok(stat)) = stream.next().await {
                 let snap = Record::from(stat);
-                let energy = self
-                    .powercap
-                    .as_ref()
-                    .as_ref()
-                    .and_then(|pcap| pcap.intel_rapl.total_energy().ok());
-                let delta = both(last_energy, energy).map(|(prev, next)| next - prev);
-                last_energy = energy;
-                if let Err(err) = tx.send(snap.with_energy(delta)).await {
+                let snap = self.enrichers.enrich(snap);
+                if let Err(err) = tx.send(snap).await {
                     warn!("unable to forward snapshot: {:?}", err);
                 }
             }
@@ -119,25 +104,11 @@ impl Params {
     pub fn create_docker(&self) -> Result<Docker, Box<dyn std::error::Error>> {
         Ok(Docker::connect_with_local_defaults()?)
     }
-
-    pub fn create_powercap(&self) -> Option<PowerCap> {
-        if self.disable_powercap {
-            None
-        } else {
-            match PowerCap::try_default() {
-                Ok(value) => Some(value),
-                Err(error) => {
-                    warn!("unable to create powercap reader: {:?}", error);
-                    None
-                }
-            }
-        }
-    }
 }
 
 pub struct Orchestrator {
     docker: Arc<Docker>,
-    powercap: Arc<Option<PowerCap>>,
+    enrichment: Arc<EnrichmentBuilder>,
     names: HashSet<String>,
     tasks: Arc<Mutex<HashSet<String>>>,
 }
@@ -147,10 +118,9 @@ impl TryFrom<Params> for Orchestrator {
 
     fn try_from(value: Params) -> Result<Self, Self::Error> {
         let docker = Arc::new(value.create_docker()?);
-        let powercap = Arc::new(value.create_powercap());
         Ok(Self {
             docker,
-            powercap,
+            enrichment: Arc::new(value.enrichment_builder()),
             names: value
                 .containers
                 .map(|value| value.split(',').map(String::from).collect())
@@ -186,11 +156,12 @@ impl Orchestrator {
         }
         self.register_task(container_name.clone());
         let docker = self.docker.clone();
-        let powercap = self.powercap.clone();
+        let enrichment = self.enrichment.clone();
         let tasks = self.tasks.clone();
-        tokio::spawn(async {
+        tokio::spawn(async move {
+            let enricher = enrichment.build();
             if let Err(err) =
-                ContainerWatcher::execute(docker, powercap, tasks, container_name, tx).await
+                ContainerWatcher::execute(docker, enricher, tasks, container_name, tx).await
             {
                 warn!("container watcher errored: {:?}", err);
             }
