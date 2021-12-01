@@ -17,6 +17,7 @@ pub struct Record {
     pub memory_limit: Option<u64>,
     pub cpu_percent: f64,
     pub cpu_count: u64,
+    #[cfg(feature = "enrichment-powercap")]
     pub cpu_energy: Option<f64>,
 }
 
@@ -39,6 +40,7 @@ impl From<Stats> for Record {
             memory_limit: item.memory_stats.limit,
             cpu_percent,
             cpu_count,
+            #[cfg(feature = "enrichment-powercap")]
             cpu_energy: None,
         }
     }
@@ -56,6 +58,7 @@ impl Record {
 
 #[cfg(test)]
 impl Record {
+    #[cfg(feature = "formatter-json")]
     pub fn random() -> Self {
         Self {
             container_id: "hello".into(),
@@ -66,8 +69,9 @@ impl Record {
             memory_usage: Some(14),
             memory_limit: None,
             cpu_count: 2,
-            cpu_energy: Some(0.23),
             cpu_percent: 0.89,
+            #[cfg(feature = "enrichment-powercap")]
+            cpu_energy: Some(0.23),
         }
     }
 }
