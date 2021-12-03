@@ -1,0 +1,39 @@
+stages:
+  - test
+  - build
+
+test:
+  stage: test
+  image: ghcr.io/rust-lang/rust:nightly-alpine
+  before_script:
+    - apk add --no-cache musl-dev
+    - rustup component add clippy
+    - cargo install cargo-hack
+  script:
+    - cargo hack check --feature-powerset
+    - cargo test
+
+build-pr:
+  stage: build
+  image: jdrouet/docker-with-buildx:20.10.8-0.6.3
+  timeout: 2h
+  except:
+    - main
+  services:
+    - docker:20.10.8-dind
+  script:
+    - docker build --tag jdrouet/docker-activity:pr .
+
+build-canary:
+  stage: build
+  image: jdrouet/docker-with-buildx:20.10.8-0.6.3
+  timeout: 2h
+  only:
+    - main
+  services:
+    - docker:20.10.8-dind
+  script:
+    - docker login --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
+    - docker build --tag jdrouet/docker-activity:canary .
+    - docker push jdrouet/docker-activity:canary
+
