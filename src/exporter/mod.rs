@@ -13,14 +13,18 @@ pub trait Exporter {
 
 #[derive(Parser)]
 pub enum Output {
-    #[clap(about = "Write the data to a file")]
+    /// Write the data to a file.
+    #[clap()]
     File(file::FileOutput),
     #[cfg(not(windows))]
-    #[clap(about = "Write the data to a unix socket")]
+    /// Write the data to a unix socket.
+    #[clap()]
     UnixSocket(socket::UnixSocketOutput),
-    #[clap(about = "Write the data to a tcp socket")]
+    /// Write the data to a tcp socket.
+    #[clap()]
     TcpSocket(socket::TcpSocketOutput),
-    #[clap(about = "Write to standard output")]
+    /// Write to standard output.
+    #[clap()]
     Stdout(stdout::StdOutOutput),
 }
 

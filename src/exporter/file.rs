@@ -8,9 +8,11 @@ use std::path::PathBuf;
 
 #[derive(Parser)]
 pub struct FileOutput {
-    #[clap(short, long, about = "Format of the output records")]
+    /// Format of the output records.
+    #[clap(short, long)]
     format: Option<Format>,
-    #[clap(about = "Path to write the file")]
+    /// Path to write the file.
+    #[clap()]
     output: PathBuf,
 }
 
