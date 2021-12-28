@@ -22,7 +22,7 @@ formatter-json = ["serde", "serde_json"]
 [dependencies]
 bollard = { version = "^0.11" }
 chrono = { version = "^0.4" }
-clap = { version = "3.0.0-beta.5" }
+clap = { version = "3.0.0-rc.9", features = ["derive"] }
 futures = { version = "0.3.19" }
 futures-util = { version = "0.3.17" }
 powercap = { version = "0.3.2", optional = true }

@@ -6,7 +6,8 @@ use std::io::{self, Write};
 
 #[derive(Parser)]
 pub struct StdOutOutput {
-    #[clap(short, long, about = "Format of the output records")]
+    /// Format of the output records.
+    #[clap(short, long)]
     format: Option<Format>,
 }
 

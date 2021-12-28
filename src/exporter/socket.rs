@@ -10,9 +10,11 @@ use std::path::PathBuf;
 #[cfg(not(windows))]
 #[derive(Parser)]
 pub struct UnixSocketOutput {
-    #[clap(short, long, about = "Format of the output records")]
+    /// Format of the output records.
+    #[clap(short, long)]
     format: Option<Format>,
-    #[clap(about = "Path to the unix socket")]
+    /// Path to the unix socket.
+    #[clap()]
     output: PathBuf,
 }
 
@@ -27,9 +29,11 @@ impl UnixSocketOutput {
 
 #[derive(Parser)]
 pub struct TcpSocketOutput {
-    #[clap(short, long, about = "Format of the output records")]
+    /// Format of the output records.
+    #[clap(short, long)]
     format: Option<Format>,
-    #[clap(about = "Server address")]
+    /// Server address.
+    #[clap()]
     address: String,
 }
 

@@ -11,18 +11,20 @@ use std::convert::TryFrom;
 use tokio::sync::mpsc;
 
 #[derive(Parser)]
+#[clap(about, version, author)]
 struct Params {
-    #[clap(long, about = "Size of the buffer.", default_value = "32")]
+    /// Size of the buffer.
+    #[clap(long, default_value = "32")]
     pub buffer_size: usize,
-    #[clap(long, about = "Level of logging.", default_value = "info")]
+    /// Level of logging.
+    #[clap(long, default_value = "info")]
     pub log_level: tracing::Level,
-    #[clap(
-        long,
-        about = "Name or ID of the container to monitor, separated by comma."
-    )]
+    /// Name or ID of the container to monitor, separated by comma.
+    #[clap(long)]
     pub containers: Option<String>,
+    /// Disable monitoring power consumption.
     #[cfg(feature = "enrichment-powercap")]
-    #[clap(long, about = "Disable monitoring power consumption.")]
+    #[clap(long)]
     pub disable_powercap: bool,
     #[clap(subcommand)]
     pub output: exporter::Output,
