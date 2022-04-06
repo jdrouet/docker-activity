@@ -20,7 +20,7 @@ formatter-csv = []
 formatter-json = ["serde", "serde_json"]
 
 [dependencies]
-bollard = { version = "0.11" }
+bollard = { version = "0.12" }
 chrono = { version = "0.4" }
 clap = { version = "3.1", features = ["derive"] }
 futures = { version = "0.3" }
