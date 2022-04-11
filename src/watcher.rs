@@ -3,7 +3,7 @@ use crate::error::Error;
 use crate::model::Record;
 use crate::Params;
 use bollard::container::{ListContainersOptions, StatsOptions};
-use bollard::models::SystemEventsResponse;
+use bollard::models::EventMessage;
 use bollard::system::EventsOptions;
 use bollard::Docker;
 use futures_util::stream::StreamExt;
@@ -91,7 +91,7 @@ impl ContainerWatcher {
     }
 }
 
-fn get_container_name(event: &SystemEventsResponse) -> Option<String> {
+fn get_container_name(event: &EventMessage) -> Option<String> {
     event
         .actor
         .as_ref()
