@@ -28,6 +28,6 @@ futures-util = { version = "0.3" }
 powercap = { version = "0.3", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
-tokio = { version = "1.18", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.22", features = ["macros", "rt-multi-thread"] }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3" }
